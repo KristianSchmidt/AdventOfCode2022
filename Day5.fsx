@@ -37,12 +37,8 @@ let moves =
 let stacks1 = makeStacks ()
 
 let execMove1 (count,fromStack,toStack) =
-    let iFrom = fromStack - 1
-    let iTo = toStack - 1
-    let temp = new Stack()
-    for i in 1 .. count do
-        temp.Push(stacks1[iFrom].Pop())
-        stacks1[iTo].Push(temp.Pop())
+    for _ in 1 .. count do
+        stacks1[toStack - 1].Push(stacks1[fromStack - 1].Pop())
 
 moves |> Array.iter execMove1
 
@@ -58,13 +54,11 @@ ans1
 let stacks2 = makeStacks ()
 
 let execMove2 (count,fromStack,toStack) =
-    let iFrom = fromStack - 1
-    let iTo = toStack - 1
     let temp = new Stack()
-    for i in 1 .. count do
-        temp.Push(stacks2[iFrom].Pop())
-    for i in 1 .. count do
-        stacks2[iTo].Push(temp.Pop())
+    for _ in 1 .. count do
+        temp.Push(stacks2[fromStack - 1].Pop())
+    for _ in 1 .. count do
+        stacks2[toStack - 1].Push(temp.Pop())
 
 moves |> Array.iter execMove2
 
