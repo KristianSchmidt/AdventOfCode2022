@@ -1,16 +1,15 @@
 #load "Helpers.fsx"
 
 open System
-open System.Numerics
 open Helpers
 
 Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
     
 type Monkey = 
     {
-        Items     : bigint array
-        Operation : bigint -> bigint
-        Test      : bigint -> bool
+        Items     : int64 array
+        Operation : int64 -> int64
+        Test      : int64 -> bool
         IfTrue    : int
         IfFalse   : int
     }
@@ -18,19 +17,19 @@ type Monkey =
 let parseMonkey (arr : string array) =
     let items =
         match arr[1] with
-        | Regex "  Starting items: (.+)" [s] -> s |> Helpers.split ", " |> Array.map (fun d -> bigint (int d))
+        | Regex "  Starting items: (.+)" [s] -> s |> Helpers.split ", " |> Array.map (fun d -> int64 (int d))
     
     let op =
         match arr[2] with
-        | Regex "new = old \* (\d+)" [d] -> ((*)(bigint (int64 d)))
-        | Regex "new = old \+ (\d+)" [d] -> ((+)(bigint (int64 d)))
+        | Regex "new = old \* (\d+)" [d] -> ((*)((int64 d)))
+        | Regex "new = old \+ (\d+)" [d] -> ((+)((int64 d)))
         | Regex "new = old \* old" [] -> fun old -> old*old
 
     let test =
         match arr[3] with
         | Regex " divisible by (\d+)" [d] ->
-            let factor = bigint(int64 d)
-            (fun s -> s % factor = BigInteger.Zero)
+            let factor = int64 d
+            (fun s -> s % factor = 0L)
 
     let ifTrue =
         match arr[4] with
@@ -47,22 +46,17 @@ let data =
     |> Array.chunkBySize 7
     |> Array.map parseMonkey
 
-let divideItems (items : bigint array) (m : Monkey) =
+let divideItems (items : int64 array) (m : Monkey) =
     items
-    |> Array.map (fun i -> (m.Operation i) / (bigint 3L))
+    |> Array.map (fun i -> (m.Operation i) / (3L))
     |> Array.groupBy m.Test
 
-let divideItems2 (items : bigint array) (m : Monkey) =
-    items
-    |> Array.map m.Operation
-    |> Array.groupBy m.Test
-
-let doRound (monkies : Monkey array) (counts,items) =
-    let rec f mIdx (counts : Map<int,int>) (state : Map<int,bigint array>) =
+let doRound divideItems (monkies : Monkey array) (counts,items) =
+    let rec f mIdx (counts : Map<int,int>) (state : Map<int,int64 array>) =
         let monkey = monkies[mIdx]
         
         let (toTrue,toFalse) =
-            let grouped = divideItems2 state[mIdx] monkey
+            let grouped = divideItems state[mIdx] monkey
             Array.tryFind fst grouped |> Option.map snd |> Option.defaultValue [||],
             Array.tryFind (fst >> not) grouped |> Option.map snd |> Option.defaultValue [||]
 
@@ -85,7 +79,7 @@ let doRound (monkies : Monkey array) (counts,items) =
 let solve (monkies : Monkey array) =
     let (counts,items) = Map.empty, (monkies |> Array.mapi (fun i m -> i,m.Items) |> Map.ofArray)
     [1..20]
-    |> List.fold (fun s _ -> doRound monkies s) (counts,items)
+    |> List.fold (fun s _ -> doRound divideItems monkies s) (counts,items)
 
 let ans1 =
     solve data
@@ -100,12 +94,17 @@ ans1
 
 /// Part 2
 
+let factor = 5L * 11L * 2L * 13L * 7L  * 3L * 17L * 19L
+
+let divideItems2 (items : int64 array) (m : Monkey) =
+    items
+    |> Array.map (fun i -> (m.Operation i) % factor)
+    |> Array.groupBy m.Test
+
 let solve2 (monkies : Monkey array) =
     let (counts,items) = Map.empty, (monkies |> Array.mapi (fun i m -> i, m.Items) |> Map.ofArray)
     [1..10_000]
-    |> List.fold (fun s i ->
-        if (i % 100 = 0) then printfn "%i" i
-        doRound monkies s) (counts,items)
+    |> List.fold (fun s i -> doRound divideItems2 monkies s) (counts,items)
 
 let ans2 =
     data
@@ -118,6 +117,4 @@ let ans2 =
     |> Array.reduce (*)
 
 ans2
-
-// too high 28497643356
 
