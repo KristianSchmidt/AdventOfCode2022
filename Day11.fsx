@@ -52,12 +52,17 @@ let divideItems (items : bigint array) (m : Monkey) =
     |> Array.map (fun i -> (m.Operation i) / (bigint 3L))
     |> Array.groupBy m.Test
 
+let divideItems2 (items : bigint array) (m : Monkey) =
+    items
+    |> Array.map m.Operation
+    |> Array.groupBy m.Test
+
 let doRound (monkies : Monkey array) (counts,items) =
     let rec f mIdx (counts : Map<int,int>) (state : Map<int,bigint array>) =
         let monkey = monkies[mIdx]
         
         let (toTrue,toFalse) =
-            let grouped = divideItems state[mIdx] monkey
+            let grouped = divideItems2 state[mIdx] monkey
             Array.tryFind fst grouped |> Option.map snd |> Option.defaultValue [||],
             Array.tryFind (fst >> not) grouped |> Option.map snd |> Option.defaultValue [||]
 
@@ -98,7 +103,9 @@ ans1
 let solve2 (monkies : Monkey array) =
     let (counts,items) = Map.empty, (monkies |> Array.mapi (fun i m -> i, m.Items) |> Map.ofArray)
     [1..10_000]
-    |> List.fold (fun s _ -> doRound monkies s) (counts,items)
+    |> List.fold (fun s i ->
+        if (i % 100 = 0) then printfn "%i" i
+        doRound monkies s) (counts,items)
 
 let ans2 =
     data
