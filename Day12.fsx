@@ -38,11 +38,25 @@ ans1
 
 /// Part 2
 
+let makeNeighbors2 ((x,y),v : char) =
+    [|(x,y+1);(x,y-1);(x-1,y);(x+1,y)|]
+    |> Array.choose (fun c -> Map.tryFind c data
+                              |> Option.bind (fun v' -> if ((int v') - (int v) >= -1) then Some ((x,y),c) else None))
+
+let edges2 =
+    data
+    |> Map.toArray
+    |> Array.collect makeNeighbors2
+    |> Array.map (fun x -> (x,true))
+    |> Map.ofArray
+
+let res2 = Helpers.Dijkstra.dijkstra edges2 endPos
+
 let ans2 =
     data
     |> Map.filter (fun _ v -> v = 'a')
     |> Map.toArray
-    |> Array.map (fun (k,_) -> (k,(Map.find k (Helpers.Dijkstra.dijkstra edges k))))
-    |> Array.minBy snd
+    |> Array.minBy (fun (k,_) -> Map.find k res2)
+    |> (fun (k,_) -> Map.find k res2)
 
 ans2
