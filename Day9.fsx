@@ -30,24 +30,30 @@ let tailMove (tX,tY) (hX,hY) =
 let doMove (tPos, hPos) dir =
     let newH = tupAdd hPos (moveDir dir)
     let newT = tupAdd tPos (tailMove tPos newH)
-    //printfn "H: %A T: %A" newH newT
     (newT,newH)
 
-//let doInstruction (dir,count) tPos hPos =
-//    [1..count] |> List.scan (fun s _ -> doMove s dir) (tPos,hPos)
-
-let res =
-    data |> Array.scan doMove ((0,0),(0,0))
+let ans1 =
+    data
+    |> Array.scan doMove ((0,0),(0,0))
     |> Array.map fst
     |> Array.distinct
     |> Array.length
-
-let ans1 = data
 
 ans1
 
 /// Part 2
 
-let ans2 = data
+let doMove2 (pos : (int*int) array) dir =
+    let newH = tupAdd pos[0] (moveDir dir)
+
+    [|1..9|]
+    |> Array.scan (fun p i -> tupAdd pos[i] (tailMove pos[i] p)) newH
+
+let ans2 =
+    data
+    |> Array.scan doMove2 (Array.replicate 10 (0,0))
+    |> Array.map (fun lst -> lst[9])
+    |> Array.distinct
+    |> Array.length
 
 ans2
