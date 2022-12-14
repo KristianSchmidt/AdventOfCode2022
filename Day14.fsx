@@ -1,7 +1,6 @@
 #load "Helpers.fsx"
 
 open System
-open Helpers
 
 Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 
@@ -18,9 +17,6 @@ let makeRock ((x1,y1),(x2,y2)) =
                 yield (x,y)
     }
     |> Array.ofSeq
-
-let isDiffOnBoth ((x1,x2),(y1,y2)) =
-    x1 <> y1 && x2 <> y2
 
 let rocks =
     data
@@ -46,8 +42,6 @@ let findRest (rocks : Set<int*int>) (sand : Set<int*int>) =
 
     f 0 pour
 
-findRest rocks (Set.ofList [(499,22)])
-
 let solve () =
     let rec f sand =
         match findRest rocks sand with
@@ -56,10 +50,7 @@ let solve () =
 
     f Set.empty
 
-
-solve ()
-
-let ans1 = data
+let ans1 = solve ()
 
 ans1
 
@@ -86,18 +77,12 @@ let solve2 () =
     let yMax = rocks |> Set.toArray |> Array.map snd |> Array.max |> ((+)2)
     let rec f sand =
         match findRest2 rocks sand yMax with
-        | Some (500,0) ->
-            printfn "Hit (500,0)"
-            1 + (Set.count sand)
+        | Some (500,0) -> 1 + (Set.count sand)
         | Some c -> f (Set.add c sand)
-        | None ->
-            printfn "Hit by none"
-            Set.count sand
+        | None -> failwithf "Not supposed to run out of room before hitting (500,0)"
 
     f Set.empty
 
-solve2 ()
-
-let ans2 = data
+let ans2 = solve2 ()
 
 ans2
