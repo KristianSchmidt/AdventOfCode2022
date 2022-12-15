@@ -38,6 +38,34 @@ ans1
 
 /// Part 2
 
-let ans2 = data
+#time "on"
+
+let interval i c =
+    let man = manhattan c
+    let ((sx,sy),_) = c
+    let dist = abs (i - sy)
+    //printfn "(%i, %i) Man: %i - Dist: %i" sx sy man dist
+    if (man >= dist) then
+        Some (max 0 (sx - (man - dist)), min (sx + (man - dist)) 4_000_000)
+    else    
+        None
+
+for i in 1 .. 4_000_000 do
+    data |> Array.choose (interval i) |> Array.sortBy fst |> ignore
+
+data |> Array.length
+
+let fs =
+    data
+    |> Array.map (fun c ->
+        let ((sx,sy),_) = c
+        let man = manhattan c
+        (fun (x,y) -> manhattan ((x,y),(sx,sy)) > man)    
+    )
+
+let ans2 =
+    Seq.allPairs [0 .. 4_000_000] [0 .. 4_000_000]
+    |> Seq.tryFind (fun c -> fs |> Array.forall (fun f -> f c))
+
 
 ans2
