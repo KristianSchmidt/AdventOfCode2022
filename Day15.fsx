@@ -50,22 +50,33 @@ let interval i c =
     else    
         None
 
-for i in 1 .. 4_000_000 do
-    data |> Array.choose (interval i) |> Array.sortBy fst |> ignore
+let mergeIntervals (ints : (int*int) list) =
+    let rec f stack lst =
+        match lst, stack with
+        | [], _ -> stack
+        | (l,h) :: xs, (sl,sh) :: sxs ->
+            if (l > sh) then
+                f ((l,h) :: stack) xs
+            else if (h > sh) then
+                f ((sl,h) :: sxs) xs
+            else
+                f stack xs
 
-data |> Array.length
+    let sorted = ints |> List.sortBy fst
+    f ([List.head sorted]) (List.tail sorted)
+    |> List.rev
+                
+let dataList = List.ofArray data
 
-let fs =
-    data
-    |> Array.map (fun c ->
-        let ((sx,sy),_) = c
-        let man = manhattan c
-        (fun (x,y) -> manhattan ((x,y),(sx,sy)) > man)    
-    )
+let tuningFreq (x,y) =
+    (int64 x) * 4_000_000L + (int64 y)
 
 let ans2 =
-    Seq.allPairs [0 .. 4_000_000] [0 .. 4_000_000]
-    |> Seq.tryFind (fun c -> fs |> Array.forall (fun f -> f c))
-
+    [1 .. 4_000_000]
+    |> List.map (fun i -> 
+        i, dataList |> List.choose (interval i) |> mergeIntervals)
+    |> List.filter (fun (_,xs) -> List.length xs <> 1)
+    |> List.map (fun (i,[(_,h);(_,_)]) -> i, tuningFreq (h+1,i))
+    |> List.head
 
 ans2
