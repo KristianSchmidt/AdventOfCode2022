@@ -38,6 +38,45 @@ ans1
 
 /// Part 2
 
-let ans2 = data
+#time "on"
+
+let interval i c =
+    let man = manhattan c
+    let ((sx,sy),_) = c
+    let dist = abs (i - sy)
+    //printfn "(%i, %i) Man: %i - Dist: %i" sx sy man dist
+    if (man >= dist) then
+        Some (max 0 (sx - (man - dist)), min (sx + (man - dist)) 4_000_000)
+    else    
+        None
+
+let mergeIntervals (ints : (int*int) list) =
+    let rec f stack lst =
+        match lst, stack with
+        | [], _ -> stack
+        | (l,h) :: xs, (sl,sh) :: sxs ->
+            if (l > sh) then
+                f ((l,h) :: stack) xs
+            else if (h > sh) then
+                f ((sl,h) :: sxs) xs
+            else
+                f stack xs
+
+    let sorted = ints |> List.sortBy fst
+    f ([List.head sorted]) (List.tail sorted)
+    |> List.rev
+                
+let dataList = List.ofArray data
+
+let tuningFreq (x,y) =
+    (int64 x) * 4_000_000L + (int64 y)
+
+let ans2 =
+    [1 .. 4_000_000]
+    |> List.map (fun i -> 
+        i, dataList |> List.choose (interval i) |> mergeIntervals)
+    |> List.filter (fun (_,xs) -> List.length xs <> 1)
+    |> List.map (fun (i,[(_,h);(_,_)]) -> i, tuningFreq (h+1,i))
+    |> List.head
 
 ans2
