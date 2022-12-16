@@ -39,10 +39,24 @@ let paths =
     |> Array.map (fun (valve, _, leadsTo) -> (valve,leadsTo))
     |> Map.ofArray
 
+let pathsAsTuple = paths |> Map.map (fun k v -> v |> Array.map (fun p -> (p,0)))
+
+let pathsAsTupleWithOpen =
+    paths |> Map.map (fun k v ->
+        let arr = v |> Array.map (fun p -> (p,0))
+        Array.append [|(k, rates[k])|] arr
+        )
+
+
 let sortedRates = rates |> Map.values |> Seq.sortDescending |> Seq.filter (fun i -> i > 0) |> Array.ofSeq
 
 let nodes = rates |> Map.toArray |> Array.map fst |> Set.ofArray
 
+data
+|> Array.collect (fun (v,_,es) -> es |> Array.map (fun e -> (v,e)))
+|> Array.sort
+|> Array.distinct
+|> Array.iter (fun (v,e) -> printfn "%s-%s" v e)
 (*
 
 Can I beat max?
@@ -104,25 +118,25 @@ ans1
 
 /// Part 2
 
-let r = System.Random();
-let randomSort (arr : 'a array) =
-    arr |> Array.sortBy (fun _ -> r.NextDouble())
-
 let solve2 () =
+    //let mutable currMax = 2343
     let mutable currMax = 0
+    let maxMinute = 26
+    let s = new System.Diagnostics.Stopwatch()
+    s.Start()
 
-    let rec f currPos elePos minute flowRate (alreadyFlowed : int) openFlows =
+    let rec f (mePrevPos,currPos) (elePrevPos,elePos) minute flowRate (alreadyFlowed : int) openFlows =
         let nextAlreadyFlowed = flowRate + alreadyFlowed
-        if (minute = 26) then
+        if (minute = maxMinute) then
             if (nextAlreadyFlowed > currMax) then
                 currMax <- nextAlreadyFlowed
-                printfn "New max: %i - Open flows: %i" currMax (Set.count openFlows)
+                printfn "New max: %i - Time: %A" currMax s.Elapsed
             nextAlreadyFlowed
         else
             let potential =
-                let numValves = (26 - minute)
-                let availNodes = Set.difference nodes openFlows
-                let sortedRates = availNodes |> Set.toSeq |> Seq.map (fun x -> rates[x]) |> Seq.sortDescending |> Seq.toArray
+                let numValves = (maxMinute - minute) / 2
+                //let availNodes = Set.difference nodes openFlows
+                //let sortedRates = availNodes |> Set.toSeq |> Seq.map (fun x -> rates[x]) |> Seq.sortDescending |> Seq.toArray
                 //if (numValves > sortedRates.Length) then
                 //    Int32.MaxValue
                 //else
@@ -132,45 +146,99 @@ let solve2 () =
                 //    |> List.chunkBySize 2
                 //    |> List.mapi (fun i lst -> (List.sum lst) * (26 - (minute + i*2-1)))
                 //    |> List.sum
-                let sum = [1..(min numValves sortedRates.Length)] |> Seq.sumBy (fun i -> sortedRates[i-1] * (26 - (minute + i-1)))
-                nextAlreadyFlowed + sum + flowRate * (26 - minute)
+                let mutable sum = 0
+                for i in 0 .. (min numValves (sortedRates.Length / 2)) do
+                    sum <- sum + sortedRates[2*i] * (maxMinute - (minute + 2*i + 1)) 
+                    if (2*i+1 < sortedRates.Length) then
+                        sum <- sum + sortedRates[2*i+1] * (maxMinute - (minute + 2*i - 1))
+
+
+                //let sum = [1..(min numValves sortedRates.Length)] |> Seq.sumBy (fun i -> sortedRates[i-1] * (26 - (minute + i-1)))
+                //let sum = [1..(min numValves sortedRates.Length)] |> Seq.sumBy (fun i -> sortedRates[i-1] * (26 - (minute + i*2-1)))
+
+                nextAlreadyFlowed + sum + flowRate * (maxMinute - minute)
 
             if (potential > currMax) then
                 let meChoices =
-                    let c = paths[currPos] |> Array.sortByDescending (fun pos -> rates[pos]) |> Array.map (fun p -> (p,0))
                     if (rates[currPos] > 0 && not (Set.contains currPos openFlows)) then
-                        Array.append [|(currPos, rates[currPos])|] c
+                        pathsAsTupleWithOpen[currPos]
                     else
-                        c
-
+                        pathsAsTuple[currPos]
+                
                 let eleChoices =
-                    let c = paths[elePos] |> Array.sortByDescending (fun pos -> rates[pos]) |> Array.map (fun p -> (p,0))
                     if (rates[elePos] > 0 && not (Set.contains elePos openFlows)) then
-                        Array.append [|(elePos, rates[elePos])|] c
+                        pathsAsTupleWithOpen[elePos]
                     else
-                        c
+                        pathsAsTuple[elePos]
 
-                let mapper = if (flowRate = 0) then Array.Parallel.map else Array.map
-                //let mapper = Array.map
-                Array.allPairs meChoices eleChoices
-                |> Array.filter (fun ((mePos,meContrib),(elePos,eleContrib)) -> not (meContrib = eleContrib && elePos = mePos && meContrib > 0))
-                //|> Array.filter (fun ((mePos,meContrib),(elePos,eleContrib)) -> mePos <> elePos) // no use traveling to the same place?
-                |> Array.sortByDescending (fun ((mePos,meContrib),(elePos,eleContrib)) -> meContrib + eleContrib)
-                |> mapper (fun ((mePos,meContrib),(elePos,eleContrib)) -> 
-                    let newOpens =
-                        let open1 = if (meContrib > 0) then openFlows |> Set.add mePos else openFlows
-                        if (eleContrib > 0) then open1 |> Set.add elePos else open1
-
-                    f mePos elePos (minute + 1) (flowRate + meContrib + eleContrib) nextAlreadyFlowed newOpens
-                )
-                |> Array.max
+                ///
+                //let mutable choiceSum = nextAlreadyFlowed + (26 - minute - 1) * flowRate
+                //
+                //if (currPos <> elePos && rates[currPos] > 0 && rates[elePos] > 0 && not (Set.contains currPos openFlows) && not (Set.contains elePos openFlows)) then
+                //    //printfn "%A %A %A %A %A" currPos elePos minute flowRate openFlows
+                //    let res = f (currPos,currPos) (elePos,elePos) (minute + 1) (flowRate + rates[currPos] + rates[elePos]) nextAlreadyFlowed (openFlows |> Set.add currPos |> Set.add elePos)
+                //    if (res > choiceSum) then
+                //        choiceSum <- res
+                //
+                //// Open elePos and move with me
+                //if (rates[elePos] > 0 && not (Set.contains elePos openFlows)) then
+                //    for meNextPos in paths[currPos] do
+                //        let res = f (currPos,meNextPos) (elePos,elePos) (minute + 1) (flowRate + rates[elePos]) nextAlreadyFlowed (Set.add elePos openFlows)
+                //        if (res > choiceSum) then
+                //            choiceSum <- res
+                //
+                //// Open currPos and move with ele
+                //if (rates[currPos] > 0 && not (Set.contains currPos openFlows)) then
+                //    for eleNextPos in paths[elePos] do
+                //        let res = f (currPos,currPos) (elePos,eleNextPos) (minute + 1) (flowRate + rates[currPos]) nextAlreadyFlowed (Set.add currPos openFlows)
+                //        if (res > choiceSum) then
+                //            choiceSum <- res
+                //
+                //for meNextPos in paths[currPos] do
+                //    if (meNextPos = mePrevPos) then
+                //        ()
+                //    else
+                //        // Cases where both move to another tile
+                //        for eleNextPos in paths[elePos] do
+                //            if (eleNextPos = elePrevPos) then
+                //                ()
+                //            else
+                //                let res = f (currPos,meNextPos) (elePos,eleNextPos) (minute + 1) flowRate nextAlreadyFlowed openFlows
+                //                if (res > choiceSum) then
+                //                    choiceSum <- res
+                //
+                //choiceSum
+                ///
+                let mutable choiceSum = nextAlreadyFlowed + (maxMinute - minute - 1) * flowRate
+                
+                for (meNextPos,meContrib) in meChoices do
+                    if (meNextPos = mePrevPos) then
+                        ()
+                    else
+                        for (eleNextPos,eleContrib) in eleChoices do
+                            if (meContrib = eleContrib && eleNextPos = meNextPos && meContrib > 0) then
+                                // No opening the same faucet
+                                ()
+                            else if (eleNextPos = elePrevPos) then
+                                ()
+                            else
+                                let newOpens =
+                                    let open1 = if (meContrib > 0) then openFlows |> Set.add meNextPos else openFlows
+                                    if (eleContrib > 0) then open1 |> Set.add eleNextPos else open1
+                                
+                                let res = f (currPos,meNextPos) (elePos,eleNextPos) (minute + 1) (flowRate + meContrib + eleContrib) nextAlreadyFlowed newOpens
+                                if (res > choiceSum) then
+                                    choiceSum <- res
+                
+                choiceSum
             else
                 -1
 
-    f "AA" "AA" 1 0 0 Set.empty
+    f ("AA","AA") ("AA","AA") 1 0 0 Set.empty
 
 solve2 ()
 
+// 2425 correct!
 // 2412 not correct
 // 2379 not correct
 // 2343 too low
