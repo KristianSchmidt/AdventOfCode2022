@@ -8,8 +8,8 @@ Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 type PushDirection = | PushLeft | PushRight | PushDown
 
 let data =
-    Helpers.Web.getInput 17
-    //[|">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"|]
+    //Helpers.Web.getInput 17
+    [|">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"|]
     |> Array.map (fun s -> s.ToCharArray())
     |> Array.head
     |> Array.map (function | '<' -> PushLeft | '>' -> PushRight)
@@ -70,13 +70,6 @@ let addShapeToMap (shape : Shape) ((map : Set<int*int>), windIdx) =
     //printfn "Shape ended at: %A" shapeEnded
     (shapeEnded |> List.fold (fun s t -> Set.add t s) map), newWindIdx
 
-summonShape Line Set.empty
-
-addShapeToMap Line (Set.empty, 0)
-|> addShapeToMap Plus
-|> addShapeToMap Lshape
-|> addShapeToMap Pipe
-
 let addNextShape ((map : Set<int*int>), windIdx) i =
     addShapeToMap (getShape i) (map,windIdx)
 
@@ -91,6 +84,35 @@ let ans1 = data
 ans1
 
 /// Part 2
+
+let addShapeToMap2 (shape : Shape) ((map : Set<int*int>), windIdx) =
+    let shapeSpawn = summonShape shape map
+    //printfn "Shape started at: %A" shapeSpawn
+    let rec f shapeCoords windIdx = 
+        // First we get the jet push
+        let wind = data[windIdx % data.Length]
+        //printfn "Wind push: %A" wind
+        let pushedByWind =
+            canBePushed wind shapeCoords map
+            |> Option.defaultValue shapeCoords
+        match canBePushed PushDown pushedByWind map with
+        | Some newCoords -> f newCoords (windIdx + 1)
+        | None -> pushedByWind, windIdx + 1
+
+    let (shapeEnded, newWindIdx) = f shapeSpawn windIdx
+    //printfn "Shape ended at: %A" shapeEnded
+    let newMap = (shapeEnded |> List.fold (fun s t -> Set.add t s) map)
+
+    newMap, newWindIdx
+
+let addNextShape2 ((map : Set<int*int>), windIdx) i =
+    addShapeToMap2 (getShape i) (map,windIdx)
+
+[0..1_000]
+|> List.fold addNextShape2 (Set.empty, 0)
+|> (fst >> Set.toArray)
+|> Array.maxBy snd
+|> snd
 
 let ans2 = data
 
