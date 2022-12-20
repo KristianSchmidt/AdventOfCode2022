@@ -10,15 +10,12 @@ let calcIdx i n =
     if (modded < 0) then n + modded else modded
 
 let data =
-    let input = //[|"1"; "2"; "-3"; "3"; "-2"; "0"; "4" |]
-                Helpers.Web.getInput 20
+    let input = Helpers.Web.getInput 20 //[|"1"; "2"; "-3"; "3"; "-2"; "0"; "4" |]
     
     input
     |> Array.map int
     |> Array.mapi (fun i v -> ((calcIdx (i-1) input.Length, calcIdx (i+1) input.Length),v))
     |> Array.map (fun (c,v) -> c,int64 v)
-
-let getValue (data : ((int*int)*int64) array) i = data[i] |> snd
 
 let rec findNextNeighbor (data : ((int*int)*int64) array) next i =
     if (i = 0L) then next
@@ -28,42 +25,34 @@ let rec findNextNeighbor (data : ((int*int)*int64) array) next i =
         findNextNeighbor data (data[next] |> fst |> snd) (i-1L)
 
 let doUpdate i (data : ((int*int)*int64) array) =
-    let len = int64 (data.Length)
+    let getValue i = data[i] |> snd
+    let getForward i = data[i] |> fst |> snd
+    let getBackward i = data[i] |> fst |> fst
+    
+    let len = int64 (data.Length) - 1L
     let ((backwardN, forwardN), value) = data[i]
     
-    if (value % (len-1L) = 0L) then 
+    if (value % len = 0L) then 
         ()
     else
 
     // Who needs to be updated?
     // Both of my neighbors need to be spliced together
-    let newForwardN  = ((backwardN, data[forwardN] |> fst |> snd), getValue data forwardN)
-    let newBackwardN = ((data[backwardN] |> fst |> fst, forwardN), getValue data backwardN)
+    let newForwardN  = ((backwardN, getForward forwardN), getValue forwardN)
+    let newBackwardN = ((getBackward backwardN, forwardN), getValue backwardN)
     data[backwardN] <- newBackwardN
     data[forwardN] <- newForwardN
 
     let (myNextBackwardsN, myNextForwardsN) =
+        let n1 = findNextNeighbor data i (value%len)
+        
         if (value > 0) then
-            if (value > len) then
-                let backwards = findNextNeighbor data i (value%(len-1L))
-                let forwards = findNextNeighbor data backwards 1
-                (backwards, forwards)
-            else
-                let backwards = findNextNeighbor data i value
-                let forwards = findNextNeighbor data backwards 1
-                (backwards, forwards)
+            (n1, findNextNeighbor data n1 1)
         else
-            if (-1L*value > len) then
-                let forwards = findNextNeighbor data i (value%(len-1L))
-                let backwards = findNextNeighbor data forwards -1
-                (backwards, forwards)
-            else
-                let forwards = findNextNeighbor data i value
-                let backwards = findNextNeighbor data forwards -1
-                (backwards, forwards)
-    
-    let nextForwards = ((i, data[myNextForwardsN] |> fst |> snd), getValue data myNextForwardsN)
-    let nextBackwards = ((data[myNextBackwardsN] |> fst |> fst, i), getValue data myNextBackwardsN)
+            (findNextNeighbor data n1 -1, n1)
+            
+    let nextForwards = ((i, getForward myNextForwardsN), getValue myNextForwardsN)
+    let nextBackwards = ((getBackward myNextBackwardsN, i), getValue myNextBackwardsN)
     
     data[i] <- ((myNextBackwardsN, myNextForwardsN), value)
     data[myNextForwardsN] <- nextForwards
