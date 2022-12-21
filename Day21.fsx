@@ -1,7 +1,6 @@
 #load "Helpers.fsx"
 
 open System
-//open FSharp.Core.Operators.Checked
 open Helpers
 
 Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
@@ -79,8 +78,6 @@ let solve map =
 
     f map
 
-// 2749189173500 too low
-
 let ans1 = solve data
 
 ans1
@@ -116,14 +113,13 @@ let solve2 map humn =
         let (rootM1, rootM2) = monkeys newMap["root"]
         match newMap[rootM1], newMap[rootM2] with
         | Number i1, Number i2 when i1 = i2 -> Some humn
-        | Number i1, Number i2 when i1 <> i2 -> None
+        | Number i1, Number i2 when i1 <> i2 -> Some (i2 - i1)
         | _ -> f newMap
         
     f (map |> Map.add "humn" (Number humn))
 
-[1L..40000L]
-|> List.pick (fun i -> printfn "Calcing %i" i; solve2 data i)
-
+// Solved via manual binary search :D
+solve2 data 3379022190351L
 
 let ans2 = data
 
