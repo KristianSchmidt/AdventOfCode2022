@@ -63,8 +63,8 @@ let addShapeToMap (shape : Shape) ((map : Set<int*int>), windIdx) =
             canBePushed wind shapeCoords map
             |> Option.defaultValue shapeCoords
         match canBePushed PushDown pushedByWind map with
-        | Some newCoords -> f newCoords (windIdx + 1)
-        | None -> pushedByWind, windIdx + 1
+        | Some newCoords -> f newCoords ((windIdx + 1)%data.Length)
+        | None -> pushedByWind, (windIdx + 1)%data.Length
 
     let (shapeEnded, newWindIdx) = f shapeSpawn windIdx
     //printfn "Shape ended at: %A" shapeEnded
@@ -89,14 +89,47 @@ ans1
 
 /// Part 2
 
+let mapToString (map : Set<int*int>) =
+    let topRock = getTopRock map |> Option.get
+    let sb = new System.Text.StringBuilder(7*50)
+    //let ba = new System.Collections.BitArray(7*50)
+    for y in topRock - 49 .. topRock do
+        for x in -3 .. 3 do
+            if (Set.contains (x,y) map)
+            then sb.Append("#") |> ignore 
+            else sb.Append(".") |> ignore
+
+    sb.ToString()
+
 let solve () =
-    let rec f i windIdx map cache =
+    let rec f i windIdx map (cache : Map<string, int*int>) =
+        //if (i % 1000 = 0) then printfn "Iter: %i" i
         let (next,widx) = addNextShape (map, windIdx) i
         // todo: make string representation and add it to cache
-        ()
+        let str = mapToString next
+        let topRock = getTopRock next |> Option.get
+        match Map.tryFind (str) cache with
+        | Some (i',tp) ->
+            printfn "Section (%i,%i) matches section (%i,%i)" i' tp (i+1) topRock
+            if (i > 10_000) then () else
+            f (i+1) widx next (cache |> Map.add (str) (i+1,topRock))
+        | None -> f (i+1) widx next (cache |> Map.add (str) (i+1,topRock))
 
     f 0 0 Set.empty Map.empty
 
-let ans2 = data
+solve ()
+
+// Above code gives Section (1875,2972) matches section (3610,5753)
+// Sample carefully chosen so there would be no remainer to handle
+let (startTime, startHeight) = 1875L, 2972L
+let (endTime, endHeight) = 3610L, 5753L
+
+let period = endTime - startTime
+let height = endHeight - startHeight
+
+let timeToSimulate = 1_000_000_000_000L - startTime
+let extraHeight = (timeToSimulate / period) * height
+
+let ans2 = startHeight + extraHeight
 
 ans2
