@@ -42,7 +42,6 @@ let test = """....#..
 ##.#.##
 .#..#..""" |> split "\n"
 
-
 let data =
     Helpers.Web.getInput 23
     //test
@@ -52,13 +51,11 @@ let data =
     |> Array.map fst
     |> Set.ofArray
 
-
 let directionOrder = [| [|N;NE;NW|]; [|S;SE;SW|]; [|W; NW; SW|]; [|E; NE; SE|] |]
 
 let doRound set i =
     let noElf c = Set.contains c set |> not
     let noElves arr = arr |> Array.forall noElf
-    let noElvesAny arr = arr |> Array.exists noElf
     let propose c =
         let noNeighbors = allNeighbors c |> noElves
         if (noNeighbors) then c
@@ -88,38 +85,35 @@ let doRound set i =
         |> Array.map fst
         |> Set.ofArray
     
-    proposals
-    |> Array.map (fun (c1,c2) -> if (Set.contains c2 banned) then c1 else c2)
-    |> Set.ofArray
-    |> (fun s -> printfn "After round %i: %i" i s.Count; s)
+    let newSet =
+        proposals
+        |> Array.map (fun (c1,c2) -> if (Set.contains c2 banned) then c1 else c2)
+        |> Set.ofArray
 
+    if (newSet = set) then
+        printfn "No elves moved in round %i" (i+1)
+
+    newSet
 
 let res =
     [0..9]
     |> List.fold doRound data
 
-let xWidthaa                nyyjvkt55r-,l.orbtyunkimloikjhgfrtngyhujiujnbvtfrctymnukiuhbgtvf gjz vyfcx
+let xWidth,yWidth =
+    let xmin = res |> Set.toArray |> Array.minBy fst |> fst
+    let ymin = res |> Set.toArray |> Array.minBy snd |> snd
+    let xmax = res |> Set.toArray |> Array.maxBy fst |> fst
+    let ymax = res |> Set.toArray |> Array.maxBy snd |> snd
+    xmax - xmin + 1, ymax - ymin + 1
 
-draw data
-
-doRound data 0 |> draw
-
-|> doRound 1 |> draw
-|> doRound 2
-
-
-
-draw data
-
-allNeighbors (9,56)
-|> Array.map (fun c -> c, data.Contains(c))
-|> Array.iter (fun (c,b) -> printfn "%A - %A" c b)
-
-let ans1 = data
+let ans1 = xWidth*yWidth - data.Count
 
 ans1
 
 /// Part 2
+
+// Below code outputs the answer from printf
+[0..1_000] |> List.fold doRound data
 
 let ans2 = data
 
