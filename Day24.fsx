@@ -1,27 +1,12 @@
 #load "Helpers.fsx"
 
 open System
-open Helpers
 open System.Collections.Generic
+open Helpers
 
 Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 
 type Direction = | Up | Down | Left | Right
-
-let memorec f =
-   let cache = Dictionary<int,((int*int)*Direction) array>()
-   let rec frec n = 
-       let value = ref Array.empty
-       let exist = cache.TryGetValue(n, value)
-       match exist with
-       | true -> 
-           ()//printfn "%O -> In cache" n
-       | false ->
-           //printfn "%O -> Not in cache, calling function..." n
-           value := f frec n
-           cache.Add(n, !value)
-       !value
-   in frec
 
 let test = """#.######
 #>>.<^<#
@@ -50,8 +35,6 @@ let blizzards =
 let xMax = data |> Array.maxBy (fst >> fst) |> (fst >> fst)
 let yMax = data |> Array.maxBy (fst >> snd) |> (fst >> snd)
 
-let someIfTrue b v = if (b) then Some v else None
-
 let isWall (x,y) =
     match x,y with
     | (1,0) -> false
@@ -62,12 +45,6 @@ let isWall (x,y) =
     | 0,_ -> true
     | _,0 -> true
     | _ -> false
-
-for y in -1 .. yMax do
-    printf "%i: " y
-    for x in -1 .. xMax do
-        if (isWall (x,y)) then printf "#" else printf "."
-    printfn ""
 
 let moveBlizzard ((x,y),(dir : Direction)) =
     let nextTile =
@@ -88,116 +65,78 @@ let moveBlizzard ((x,y),(dir : Direction)) =
         | Right -> (1,snd nextTile), dir
         | Left -> ((xMax-1), snd nextTile), dir
         
-//let allBlizzards =
-//    [|1..2000|]
-//    |> Array.scan (fun b _ -> b |> Array.map moveBlizzard) blizzards
-//
-//let allBsets = allBlizzards |> Array.map (fun b -> b |> Array.map fst |> Set.ofArray)
+let blizzPerms =
+    Helpers.lcm ((int64 yMax)-1L) ((int64 xMax)-1L) |> int
 
-let blizzardsPos f i =
-    if (i = 0) then blizzards
-    else
-        f (i-1) |> Array.map moveBlizzard
+#time "on"
+let allBlizzards =
+    [|1..blizzPerms|]
+    |> Array.scan (fun b _ -> b |> Array.map moveBlizzard) blizzards
 
-let memBlizzardPos = memorec blizzardsPos
-
-let blizzSet i =
-    memBlizzardPos i |> Array.map fst |> Set.ofArray
-
-let memBlizzSet = memoize blizzSet
+let allBsets =
+    allBlizzards
+    |> Array.map (fun b -> b |> Seq.map fst |> Set.ofSeq)
 
 let solve startPos (endX,endY) startTime =
-    let mutable currMin = 1600
+    let calcPotential ((x',y'),time) =
+        let res = time + abs (endY-y') + abs (endX-x')
+        res
+
+    let mutable currMin = Int32.MaxValue
     let s = new System.Diagnostics.Stopwatch()
     s.Start()
     
-    let q = System.Collections.Generic.PriorityQueue<int,(int*int)*int>()
+    let q = PriorityQueue<(int*int)*int,int>()
+    q.Enqueue((startPos,startTime), abs (fst startPos - endX) + abs (snd startPos - endY))
 
-    let mutable stateMap : Map<(int*int)*int,int> = Map.empty    
-
-    let rec f (x,y) currTime () =
-        //if (x = 6 && y = 4) then
-        //    printfn "got to end at %i" currTime
+    let mutable stateMap : Map<(int*int)*int,int> = Map.empty
+    let mutable i = 0
+    while (q.Count > 0) do
+        i <- i + 1
+        let key = q.Dequeue()
+        let ((x,y),currTime) = key
         
         if (x = endX && y = endY) then
             if (currTime < currMin) then
                 currMin <- currTime
-                printfn "New min: %i" currMin
-            currTime
-        else if (currTime > currMin) then
-            Int32.MaxValue
-        else if (stateMap.ContainsKey((x,y),currTime)) then
-            stateMap[((x,y),currTime)]
+                printfn "New min: %i. Time: %A" currMin s.Elapsed
+
+        let potential = currTime + abs (endY-y) + abs (endX-x)
+        if (potential > currMin) then
+            ()
+        else if (stateMap.ContainsKey(key) && stateMap[key] <= currTime) then
+            ()
         else
-            let potential = currTime + abs (endY-y) + abs (endX-x)
-            if (potential > currMin) then
-                Int32.MaxValue
-            else
-            //printfn "(x,y) = (%i,%i) Currtime: %i" x y (currTime+1)
-            let bSet = memBlizzSet (currTime+1)
-            // Moves:
-            // 1. do nothing
-            // 2. move up, down, left or right
-            let doNothing =
-                f (x,y) (currTime + 1)
-                |> someIfTrue (not (Set.contains (x,y) bSet))
+        let bSet = allBsets[(currTime+1) % blizzPerms]
+        
 
-            let moveUp =
-                let nextPos = (x,y-1)
-                f nextPos (currTime + 1)
-                |> someIfTrue ((isWall nextPos |> not)
-                               && not (Set.contains nextPos bSet))
+        [| (x,y); (x,y-1); (x,y+1); (x-1,y); (x+1,y)|]
+        |> Array.iter (fun c ->
+            if ((isWall c |> not) && not (Set.contains c bSet)) then
+                let key = (c, currTime + 1)
+                q.Enqueue(key, calcPotential key)
+        )
 
-            let moveDown =
-                let nextPos = (x,y+1)
-                f nextPos (currTime + 1)
-                |> someIfTrue ((isWall nextPos |> not)
-                               && not (Set.contains nextPos bSet))
-
-            let moveLeft =
-                let nextPos = (x-1,y)
-                f nextPos (currTime + 1)
-                |> someIfTrue ((isWall nextPos |> not)
-                               && not (Set.contains nextPos bSet))
-
-            let moveRight =
-                let nextPos = (x+1,y)
-                f nextPos (currTime + 1)
-                |> someIfTrue ((isWall nextPos |> not)
-                               && not (Set.contains nextPos bSet))
-
-            let choices =
-                if (endY > snd startPos) then
-                    Array.choose id [| moveRight; moveDown; doNothing; moveLeft; moveUp|]
-                else
-                    Array.choose id [| moveLeft; moveUp; doNothing; moveRight; moveDown |]
-                    
-            let res =
-                if (choices.Length = 0) then Int32.MaxValue
-                else
-                choices
-                |> Array.map (fun f -> f ())
-                |> Array.min
-
-            stateMap <- Map.add ((x,y),currTime) res stateMap
-            res
-            
-    f startPos startTime ()
+        stateMap <- Map.add key currTime stateMap
+           
+    printfn "%A -> %A examined %i nodes" startPos (endX, endY) i
+    currMin
 
 
 let startPos = (1,0)
 let endPos = (xMax-1,yMax)
 
+// 279
 let ans1 = solve startPos endPos 0
 
 ans1
 
 /// Part 2
 
+// 529
 let ans2 = (solve endPos startPos ans1)
 
+// 762
 let ans3 = solve startPos endPos ans2
-
-// 812 too high
 
 ans2
